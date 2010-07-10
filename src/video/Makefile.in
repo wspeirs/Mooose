@@ -1,0 +1,5 @@
+VirtualConsole.cpp
+VirtualConsoleManager.cpp
+screen_utils.cpp
+VesaVideo.cpp
+font_8x8.cpp

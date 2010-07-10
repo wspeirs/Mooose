@@ -1,0 +1,126 @@
+#!/usr/bin/perl -w
+
+# going to create two files, a head and a cpp file for the class
+
+if(@ARGV == 0 or $ARGV[1] eq "-s")
+{
+	print "make_class [-s] dir/class_name\n";
+	print "\t -s = singleton class\n";
+	print "\nExample: make_class -s init/memory\n";
+	print "\t This will make the class memory in the dir init\n";
+	print "\t The files init/memory.cpp & include/memory.h will be created\n";
+}
+
+if(@ARGV == 1)
+{
+	$argName = $ARGV[0];
+	$singleton = 0;
+}
+
+else
+{
+	$argName = $ARGV[1];
+	$singleton = 1;
+}
+
+# get the template first
+open(TMP, "template") or die $!;
+@template = <TMP>;
+close(TMP);
+
+# get the "raw" file name
+@subdirs = split(/\//, $argName);
+$name = @subdirs[scalar(@subdirs)-1];
+
+if(-e "include/$name.h")
+{ die "include/$name.h ALREADY EXISTS!!!\n"; }
+
+if(-e "$argName.cpp")
+{ die "$argName.cpp ALREADY EXISTS!!!\n"; }
+
+# first make the header file
+open(FILE, ">include/$name.h") or die $!;
+
+print FILE @template;
+
+print FILE "/** \@file $name.h\n";
+print FILE " *\n";
+print FILE " */\n";
+print FILE "\n";
+
+print FILE "#ifndef " . uc($name) . "_H\n";
+print FILE "#define " . uc($name) . "_H\n\n\n";
+
+print FILE "#include <constants.h>\n";
+print FILE "#include <types.h>\n\n\n";
+
+print FILE "/** \@class $name\n";
+print FILE " *\n";
+print FILE " * \@brief \n";
+print FILE " *\n";
+print FILE " **/\n\n";
+
+print FILE "class $name\n";
+print FILE "{\npublic:\n\n";
+
+if($singleton)
+{
+print FILE "\t/** Returns the instance of the class\n";
+print FILE "\t * \@return Pointer to the instance of $name\n";
+print FILE "\t **/\n";
+
+print FILE "\tinline static $name *GetInstance() { return(myself); }\n\n";
+}
+print FILE "private:\n\n";
+
+if($singleton)
+{
+print FILE "\tstatic $name\t*myself;\t/// Self reference\n";
+print FILE "\tstatic bool\tcreated;\t/// Track if an instance already exists\n";
+}
+
+print FILE "};\n";
+print FILE "\n\n#endif // $name.h\n\n\n";
+
+close(FILE);
+
+print "Created: include/$name.h\n";
+
+# now make the cpp file
+open(FILE, ">$argName.cpp") or die $!;
+
+print FILE @template;
+
+print FILE "/** \@file $name.cpp\n";
+print FILE " *\n";
+print FILE " */\n";
+print FILE "\n";
+
+print FILE "#include <constants.h>\n";
+print FILE "#include <types.h>\n";
+print FILE "#include <$name.h>\n\n\n";
+
+if($singleton)
+{
+print FILE "$name *$name\:\:myself;\t\t/// Definition for static data member myself\n";
+print FILE "bool $name\:\:created = false;\t/// Definition for static data member created\n\n";
+}
+
+print FILE "$name\:\:$name()\n";
+print FILE "{\n\n";
+
+if($singleton)
+{
+print FILE "\tif(created) // check if already created\n\n";
+print FILE "\t\t; // Panic!!!\n\n";
+print FILE "\tmyself = this;\t// set the self reference\n";
+print FILE "\tcreated = true;\t// mark that this has been created\n\n";
+}
+
+print FILE "}\n";
+
+close(FILE);
+
+print "Created: $argName.cpp\n"
+
+

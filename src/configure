@@ -1,0 +1,152 @@
+#! /usr/bin/perl -w
+
+$OptLevel = "-O2";	# sets the optimization level
+
+@tools = ();
+
+#
+# Start with the top level make file and parse it looking for things to resolve and the DIRS
+#
+open(MAKE_TOP, "Makefile.top") or die $!;
+open(TOP_MAKE, ">Makefile") or die $!;
+
+while($line = <MAKE_TOP>)
+{
+	if($line =~ /^[A-Z]+\n/) # found something like GCC
+	{
+		chomp($line);
+		$output = "";
+		
+		if($line eq "GPP")	# spcial case for g++
+		{
+			$output = "GPP\t= " . LocateBinary("g++");
+			push(@tools, $output);
+		}
+
+		elsif($line eq "HOME")
+		{
+			$pwd = `pwd`;
+			$output = "HOME\t= " . substr($pwd, 0, -5);
+			push(@tools, $output);
+		}
+		
+		else	# the rest of them
+		{
+			$output = $line . "\t= " . LocateBinary(lc($line));
+			push(@tools, $output);
+		}
+		
+		print TOP_MAKE $output;
+	}
+	
+	elsif($line =~ /^DIRS/)	# found the DIRS line
+	{
+		print TOP_MAKE $line;	# print the DIRS line
+		
+		chomp($line);
+		
+		($dirs, $dirs) = split(/= /, $line);
+		
+		@subDirs = split(/\ /, $dirs);	# get a list of the DIRS
+		
+		@objFiles = MakeSubDirs(@subDirs);	# do a make for each of them, returning a list of objects
+		
+		print TOP_MAKE "OBJS\t= \\\n";	# print the OBJS line
+		
+		for($i = 0; $i < @objFiles - 1; ++$i)
+		{
+			print TOP_MAKE "\t $objFiles[$i] \\\n";
+		}
+		
+		print TOP_MAKE "\t $objFiles[@objFiles-1]\n";
+	}
+	
+	else	# not a special line
+	{ print TOP_MAKE $line; }
+}
+
+close(MAKE_TOP);
+close(TOP_MAKE);
+
+
+sub LocateBinary
+{
+	my $result = `which $_[0]`;
+
+	return "" if($result =~ /^which/);
+		
+
+	return $result;
+}
+
+sub MakeSubDirs
+{
+	# this defines the includes
+	$include = "-I ../include/ -I ../include/k_std";
+
+	@ret_objs = ();
+	
+	foreach $dir (@_)
+	{
+		print STDERR "Processing $dir...\n";
+		
+		open(MAKE_IN, "$dir/Makefile.in") or die "$dir/Makefile.in: $!";
+		@files = <MAKE_IN>;	# read in all the files in a single shot
+		map { chomp } @files;	# remove the new lines
+		close(MAKE_IN);
+		
+		@objs = @files;
+		
+		map { s/(cpp)$|S$/o/ } @objs;	# convert .cpp & .S to .o
+		
+		open(MAKE, ">$dir/Makefile") or die $!;
+		
+		#
+		# Write the header stuff
+		#
+		print MAKE @tools;
+		print MAKE "\n";
+		print MAKE "INCLUDE\t= $include\n";
+		print MAKE "ARCH_FLAGS\t= -march=i486 -m32\n";
+		print MAKE "ASM_FLAGS\t= \$(ARCH_FLAGS) $OptLevel -g -pipe -pedantic -W -Wall -Wstack-protector -fno-builtin -nostdinc -nodefaultlibs\n";
+ 		print MAKE "CPP_FLAGS\t= -fno-stack-protector -fno-threadsafe-statics -fno-rtti \$(ASM_FLAGS) -Wno-variadic-macros -Woverloaded-virtual -fno-exceptions -nostdinc++\n\n";
+# 		print MAKE "CPP_FLAGS\t= -fno-rtti \$(ASM_FLAGS) -Woverloaded-virtual -fno-exceptions -nostdinc++\n\n";
+		
+		print MAKE "OBJS\t= " . join(" ", @objs) . "\n\n";
+		
+		print MAKE "all: \$(OBJS)\n\n";
+		
+		# process each file
+		foreach $file (@files)
+		{
+			print STDERR "\tAdding $file\n";
+			
+			print MAKE `cd $dir; g++ -M $include $file`;
+			
+			print MAKE "\t\$(GPP) \$(CPP_FLAGS) \$(INCLUDE) -c $file\n\n" if($file =~ /.cpp$/);
+			print MAKE "\t\$(GCC) \$(ASM_FLAGS) \$(INCLUDE) -c $file\n\n" if($file =~ /.S$/);
+		}
+			
+		print STDERR "\n";
+		
+		print MAKE "clean:\n\trm -f *.o *~\n\n";
+		
+		close(MAKE);	# close the make file
+		
+		@objs = map { "$dir/$_" } @objs;
+		push(@ret_objs, @objs); # save off all the ret objects
+	}
+	
+	return @ret_objs;
+}
+
+
+
+#CXXFLAGS = -g -march=pentium-m -ansi -O3 -mno-mmx -mno-sse -mno-sse2 -fomit-frame-pointer -pipe -pedantic -W -Wall $(INCLUDES) -Wcast-align -Winline -Wredundant-decls -Wpointer-arith -fno-ident -Wno-long-long -nostdinc -nodefaultlibs -fno-builtin -Wwrite-strings -Wcast-qual -Wunused-macros -Wold-style-cast  -Woverloaded-virtual -nostdinc++ -nostartfiles -fno-exceptions
+
+#CFLAGS = -g -march=pentium-m -ansi -std=c99  -O3 -mno-mmx -mno-sse -mno-sse2 -fomit-frame-pointer -pipe -pedantic -W -Wall $(INCLUDES) -Wcast-align -Winline -Wredundant-decls -Wpointer-arith -fno-ident -Wno-long-long -nostdinc -nodefaultlibs -fno-builtin -Wmissing-prototypes -Wbad-function-cast -Wstrict-prototypes -Wsequence-point -ffreestanding -Wnested-externs
+
+
+
+
+

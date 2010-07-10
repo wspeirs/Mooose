@@ -1,0 +1,104 @@
+#############################################################
+# Locations of tools that are needed to compile the kernel
+#############################################################
+GPP
+GCC
+LD
+STRIP
+SYNC
+
+HOME
+
+#############################################################
+# A list of the directories, objects, and the kernel's name
+#############################################################
+DIRS	= init mem_man video utils interrupts drivers tasks file_systems system_calls c_lib
+
+#############################################################
+# The name of the kernel
+#############################################################
+NAME	= kernel
+
+#############################################################
+# This is the target to make the whole kernel
+# Make all of the sub parts, then link everything together
+#############################################################
+all: subdirs
+	$(LD) -m elf_i386 $(OBJS) -nostdlib -nostartfiles -nodefaultlibs -T link_script.ld -o ../$(NAME)
+	$(SYNC)
+	nm -C ../$(NAME) | sort > $(NAME).map
+	objdump -dCS --no-show-raw ../$(NAME) > $(NAME).asm
+
+##############################################################
+# This will call "make all" on all the directories in DIRS
+# See http://www.gnu.org/software/make/manual/html_chapter/make_4.html#SEC41
+##############################################################
+.PHONY: subdirs $(DIRS)
+
+subdirs: $(DIRS)
+
+$(DIRS):
+	$(MAKE) -s -C $@ all
+
+
+##############################################################
+# This target copies the kernel into the disk
+##############################################################
+install: all mount
+	sudo /bin/cp ../$(NAME) ../mnt/boot/kernel
+	$(SYNC)
+
+##############################################################
+# This target copies the kernel into the disk
+##############################################################
+run: install
+	bochs -f ../bochs_files/bochs_rc.txt -q
+
+##############################################################
+# This target attaches the disk image to a loop device
+##############################################################
+attach:
+	-sudo /sbin/losetup -o 32256 /dev/loop0 ../bochs_files/my_kernel.img
+
+##############################################################
+# This target mounts the disk image at ../mnt
+##############################################################
+mount: attach
+	-sudo /bin/mount /dev/loop0 ../mnt
+
+##############################################################
+# This target unmounts the disk image at ../mnt
+##############################################################
+umount:
+	-sudo /bin/umount ../mnt
+
+##############################################################
+# This target detaches the disk image from the loop device
+##############################################################
+detach: umount
+	sudo /sbin/losetup -d /dev/loop0
+
+##############################################################
+# This target detaches the disk image from the loop device
+##############################################################
+status:
+	df
+	sudo /sbin/losetup -a
+
+##############################################################
+# This target makes the CD iso
+##############################################################
+cd: all
+	sudo mount -o loop $(HOME)/disk_images/image_fs/boot/template.img /mnt/floppy
+	sudo cp $(HOME)/kernel /mnt/floppy/boot/kernel
+	sudo umount /mnt/floppy/
+	sudo mkisofs -r -b boot/template.img -c boot/boot.catalog -o $(HOME)/disk_images/current.iso $(HOME)/disk_images/image_fs/
+	sudo chown wspeirs:users $(HOME)/disk_images/current.iso
+
+##############################################################
+# This target will delete all of the objects, and the kernel
+# Any special cleanup items should be placed here as well
+##############################################################
+clean:
+	rm -f ../$(NAME) *~ $(NAME).asm $(NAME).map include/*~ include/k_std/*~ Makefile
+	for dir in $(DIRS); do make -s -C $$dir clean; rm -f $$dir/Makefile 2>/dev/null; done

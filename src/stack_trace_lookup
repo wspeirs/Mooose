@@ -1,0 +1,84 @@
+#!/usr/bin/perl -w
+
+# first open the map file and parse it
+open(FILE, "kernel.map") or die $!;
+
+while($line = <FILE>)
+{
+	($addr, $type, $fName) = split(/ /, $line, 3);
+	
+	chomp($fName);
+	
+	$lookupTable{$addr} = $fName;
+}
+
+close(FILE);
+
+while(1)
+{
+	print "\nAddress: ";
+	$input = <STDIN>;
+	
+	chomp($input);
+	
+	if($input eq "q" or $input eq "Q")
+	{ last; }
+
+	$tmp = $input;
+
+	do
+	{
+		chop($tmp);
+		if($tmp eq "")
+		{
+			print "Couldn't find function!!!\n";
+#			last; # this SHOULD work, but doesn't :-(
+		}
+
+		else
+		{ $res = FindNameByAddressPrefix($input, $tmp); }
+
+	} while($res eq "NOTHING" and $tmp ne "");
+	
+
+	if($res ne "NOTHING")
+	{ print "$lookupTable{$res}\t($res)\n"; }
+
+}
+
+# takes a full address and a prefix and returns the name of the function
+sub FindNameByAddressPrefix
+{
+	my $theAddress = $_[0];
+	my $addr = $_[1];
+
+#	chop($addr);	# take off the last digit
+
+	@funcs = ();
+	
+	foreach $address (sort keys(%lookupTable))
+	{
+		if($address =~ /^$addr/)
+		{
+			push(@funcs, $address);
+		}
+	}
+	
+	if(@funcs > 0)	# found some
+	{
+		$lastAddr = $funcs[0];
+		
+		foreach $addr (sort { hex $a <=> hex $b } @funcs)
+		{
+			if($addr ge $theAddress)	# we want the last one
+			{
+#				print "$lookupTable{$lastAddr}\t($lastAddr)\n";
+				return $lastAddr;
+			}
+			
+			$lastAddr = $addr;
+		}
+	}
+
+	return "NOTHING";
+}

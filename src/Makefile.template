@@ -1,0 +1,45 @@
+#############################################################
+# Locations of tools that are needed to compile the kernel
+#############################################################
+GPP	= /usr/bin/g++
+GCC	= /usr/bin/gcc
+LD	= /usr/bin/ld
+
+#############################################################
+# These are the possible include directories for these files
+# NOTE: The are needed because we're building an OS that can't
+#       use things like libc; see man gcc.
+# NOTE: YOU MUST SELECT THE PROPER ARCHITECTURE FOR YOUR
+#       TARGET MACHINE!!!
+#############################################################
+INCLUDE		= -I ../include/ -I ../include/k_std
+ARCH_FLAGS	= -march=k6-2
+ASM_FLAGS	= -g $(ARCH_FLAGS) -O2 -pipe -pedantic -W -Wall -fno-builtin -fomit-frame-pointer -nostdinc -nodefaultlibs
+CPP_FLAGS	= -fno-rtti $(ASM_FLAGS) -Woverloaded-virtual -fno-exceptions -nostdinc++ 
+
+#############################################################
+# These are the header and object files for this directory
+# NOTE: If a header that is used in one of the source files
+#       in this directory changes, you must re-make
+#       all of the object files in this directory
+#############################################################
+HEADERS	= ../include/*.h ../include/k_std/*.h
+OBJS	= 
+
+#############################################################
+# This target will build everything in this directory. It is
+# called from the main Makefile at the root.
+#############################################################
+all: $(HEADERS) $(OBJS)
+
+#############################################################
+# These targets build each source file
+#############################################################
+
+
+##############################################################
+# This target will delete all of the objects in this directory
+# Any special cleanup items should be placed here as well
+##############################################################
+clean: 
+	rm -f *.o *~

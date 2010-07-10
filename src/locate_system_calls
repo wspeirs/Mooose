@@ -1,0 +1,27 @@
+#! /usr/bin/perl -w
+
+# first open the syscalls.h file to get a list of the calls
+open(SYS, "include/syscalls.h") or die $!;
+
+while($line = <SYS>)
+{
+	chomp($line);
+
+	if($line =~ /(SYSCALL\_\w+)/)	# found a call
+	{
+		$syscall = $1;
+		@output = `grep $syscall * -R`;
+
+		foreach $l (@output)
+		{
+			if($l =~ /\.cpp:/)
+			{
+				@res = split(/:/, $l);
+				
+				print "$res[0]:\t$syscall\n";
+			}
+		}
+	}
+}
+
+close(SYS);

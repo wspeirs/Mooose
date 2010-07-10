@@ -1,0 +1,55 @@
+#!/usr/bin/perl
+
+# Take the path to a file as an argument and make a file with the copyright provided
+
+if(@ARGV != 1)
+{ die "Must provide the path to the file to be created\n"; }
+
+if(-e $ARGV[0])
+{ die "File $ARGV[0] already exits\n"; }
+
+# open the template file
+open(TEMP, "template") or die $!;
+
+@lines = <TEMP>;
+
+close(TEMP);
+
+# get the "raw" file name
+@subdirs = split(/\//, $ARGV[0]);
+$fileName = @subdirs[scalar(@subdirs)-1];
+
+($name, $ext) = split(/\./, $fileName);
+
+# open the source file
+open(FILE, ">$ARGV[0]") or die $!;
+
+print FILE @lines;
+
+# print these manually... just easier
+print FILE "/** \@file $fileName\n";
+print FILE " *\n";
+print FILE " */\n";
+print FILE "\n";
+
+if($ext eq "cpp") #dealing with a CPP file
+{
+	print FILE "#include <constants.h>\n";
+	print FILE "#include <types.h>\n\n\n";
+}
+
+elsif($ext eq "h")
+{
+	$fileName =~ s/\./\_/;
+	$fileName = uc($fileName);
+
+	print FILE "#ifndef $fileName\n";
+	print FILE "#define $fileName\n";
+	print FILE "\n\n#endif // $fileName\n\n\n";
+}
+
+close(FILE);
+
+print "CREATED: $ARGV[0]\n";
+
+print "Remember to add to CVS\n";
