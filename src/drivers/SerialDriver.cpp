@@ -34,17 +34,15 @@ SerialDriver::SerialDriver(ushort port)
 int SerialDriver::Startup()
 {
 	// taken from http://www.osdev.org/wiki/Serial_ports
+     // !!! Make sure that your CPU speed isn't too FAST: cpu: count=1, ips=500000
 	outb(port + 1, 0x00);    // Disable all interrupts
-	outb(port + 3, 0x80);    // Enable DLAB (set baud rate divisor)
-//     outb(port + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
-     outb(port + 0, 0x01);    // Set divisor to 3 (lo byte) 38400 baud
+     outb(port + 3, 0x80);    // Enable DLAB (set baud rate divisor)
+     outb(port + 0, 0x01);    // Set divisor to 1 (lo byte) 115200 baud
      outb(port + 1, 0x00);    //                  (hi byte)
 	outb(port + 3, 0x03);    // 8 bits, no parity, one stop bit
-//     outb(port + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-     outb(port + 2, 0x00);    // Disable FIFO
-//     outb(port + 4, 0x0B);    // IRQs enabled, RTS/DSR set
-     outb(port + 4, 0x03);    // IRQs enabled, RTS/DSR set
-     
+     outb(port + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
+     outb(port + 4, 0x0B);    // IRQs enabled, DTR/RTS set
+
 	return 0;
 }
 
@@ -77,8 +75,6 @@ int SerialDriver::PutCharacters(ulong address, int count, void *src)
      {
           while(inb(port + 5) & 0x20 == 0);  // wait to enable write
 		outb(port, *(s+i));
-          
-          outb(0xe9, *(s+i));
      }
 	
 	return count;
@@ -90,8 +86,6 @@ int SerialDriver::Write(const string &str)
 	{
 		while(inb(port + 5) & 0x20 == 0);	// wait to enable write
 		outb(port, *it);
-
-          outb(0xe9, *it);
 	}
 
 	return str.size();	
