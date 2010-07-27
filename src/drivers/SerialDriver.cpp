@@ -36,12 +36,15 @@ int SerialDriver::Startup()
 	// taken from http://www.osdev.org/wiki/Serial_ports
 	outb(port + 1, 0x00);    // Disable all interrupts
 	outb(port + 3, 0x80);    // Enable DLAB (set baud rate divisor)
-	outb(port + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
-	outb(port + 1, 0x00);    //                  (hi byte)
+//     outb(port + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
+     outb(port + 0, 0x01);    // Set divisor to 3 (lo byte) 38400 baud
+     outb(port + 1, 0x00);    //                  (hi byte)
 	outb(port + 3, 0x03);    // 8 bits, no parity, one stop bit
-	outb(port + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-	outb(port + 4, 0x0B);    // IRQs enabled, RTS/DSR set
-	
+//     outb(port + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
+     outb(port + 2, 0x00);    // Disable FIFO
+//     outb(port + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+     outb(port + 4, 0x03);    // IRQs enabled, RTS/DSR set
+     
 	return 0;
 }
 
@@ -55,11 +58,12 @@ int SerialDriver::Handle(Registers *regs)
 int SerialDriver::GetCharacters(ulong address, int count, void *dest)
 {
 	(void)address;
+     uchar *d = reinterpret_cast<uchar*>(dest);
 
 	while(inb(port + 5) & 0x01 == 0);	// wait for the data
 	
 	for(int i=0; i < count; ++i)
-		*(reinterpret_cast<uchar*>(dest)+i) = inb(port + 5);
+		*(d+i) = inb(port + 5);
 	
 	return count;
 }
@@ -67,11 +71,15 @@ int SerialDriver::GetCharacters(ulong address, int count, void *dest)
 int SerialDriver::PutCharacters(ulong address, int count, void *src)
 {
 	(void)address;
+     uchar *s = reinterpret_cast<uchar*>(src);
 
-	while(inb(port + 5) & 0x20 == 0);	// wait to enable write
-	
 	for(int i=0; i < count; ++i)
-		outb(port, *(reinterpret_cast<uchar*>(src)+i));
+     {
+          while(inb(port + 5) & 0x20 == 0);  // wait to enable write
+		outb(port, *(s+i));
+          
+          outb(0xe9, *(s+i));
+     }
 	
 	return count;
 }
@@ -82,6 +90,8 @@ int SerialDriver::Write(const string &str)
 	{
 		while(inb(port + 5) & 0x20 == 0);	// wait to enable write
 		outb(port, *it);
+
+          outb(0xe9, *it);
 	}
 
 	return str.size();	
